@@ -2,11 +2,14 @@
 
 import { Loader } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
+import { useState } from 'react';
 
 import type { Id } from '@/../convex/_generated/dataModel';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Profile } from '@/features/members/components/profile';
 import { Thread } from '@/features/messages/components/thread';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { usePanel } from '@/hooks/use-panel';
 
 import { Sidebar } from './sidebar';
@@ -15,8 +18,47 @@ import { WorkspaceSidebar } from './workspace-sidebar';
 
 const WorkspaceIdLayout = ({ children }: Readonly<PropsWithChildren>) => {
   const { parentMessageId, profileMemberId, onClose } = usePanel();
+  const isMobile = useIsMobile();
+  const [navOpen, setNavOpen] = useState(false);
 
   const showPanel = !!parentMessageId || !!profileMemberId;
+
+  const panelContent = parentMessageId ? (
+    <Thread messageId={parentMessageId as Id<'messages'>} onClose={onClose} />
+  ) : profileMemberId ? (
+    <Profile memberId={profileMemberId as Id<'members'>} onClose={onClose} />
+  ) : (
+    <div className="flex h-full items-center justify-center">
+      <Loader className="size-5 animate-spin text-muted-foreground" />
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="h-full">
+        <Toolbar onMenuClick={() => setNavOpen(true)} />
+
+        <div className="h-[calc(100vh_-_40px)] overflow-hidden">{children}</div>
+
+        <Sheet open={navOpen} onOpenChange={setNavOpen}>
+          <SheetContent side="left" className="w-[88%] gap-0 p-0 sm:w-[320px]" hideClose>
+            <div className="flex h-full">
+              <Sidebar />
+              <div className="min-w-0 flex-1">
+                <WorkspaceSidebar />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={showPanel} onOpenChange={(open) => !open && onClose()}>
+          <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-md" hideClose>
+            {panelContent}
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full">
@@ -40,15 +82,7 @@ const WorkspaceIdLayout = ({ children }: Readonly<PropsWithChildren>) => {
             <>
               <ResizableHandle withHandle />
               <ResizablePanel minSize={20} defaultSize={29}>
-                {parentMessageId ? (
-                  <Thread messageId={parentMessageId as Id<'messages'>} onClose={onClose} />
-                ) : profileMemberId ? (
-                  <Profile memberId={profileMemberId as Id<'members'>} onClose={onClose} />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Loader className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
+                {panelContent}
               </ResizablePanel>
             </>
           )}
